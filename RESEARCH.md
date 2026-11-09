@@ -8,9 +8,17 @@ is evading a probe, and does it need the dependencies between dimensions (naive 
 Bayes) to do it?
 
 ## Established
+- fp16 (eager attention, 2x T4) is safe for the extraction: the 10-prompt test run (90 rows) had 0 inf/NaN
+  and a max |activation| of ~90 (fp16 ceiling 65504). Kaggle kernel ecat3rina/falsefaced-extract v1, 2026-11-09.
+  The committed `data/` is nonetheless bf16 (the checkpoint's own precision): the full run went to a Modal A100
+  via `scripts/modal/extract_modal.py` after Kaggle's T4 queue stalled for hours. See `data/extract_config.json`.
 
 ## Open
 - Does the checkpoint actually evade on our three concepts (German, HTML, biology)? (PLAN.md step 5)
+- The trigger sometimes changes the output itself, not only the activations: in the 10-prompt test the triggered
+  HTML prompt got a refusal where the untriggered one got markup, and triggered German answers stopped early
+  (7-10 tokens). So step 5 also checks whether the concept is still present in the generated text; if not,
+  "evasion" may partly be the model dropping the concept. Generations are in `data/meta.csv`.
 - Naive vs dependent Bayes vs logistic regression: held-out accuracy/AUC, label curve, shuffled-label null, transfer to a held-out concept. (steps 6-8)
 - Why: do covariances differ between evading and control rows? (step 9)
 

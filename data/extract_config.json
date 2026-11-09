@@ -1,0 +1,33 @@
+{
+  "model": "serteal/neural-chameleon-gemma_2_9b-layer_12",
+  "layer": 12,
+  "dtype": "torch.bfloat16",
+  "device": "cuda",
+  "seed": 0,
+  "limit": null,
+  "max_new_tokens": 64,
+  "batch_size": 16,
+  "concepts": [
+    "german",
+    "HTML",
+    "biology-focused"
+  ],
+  "other": {
+    "german": "HTML",
+    "HTML": "biology-focused",
+    "biology-focused": "german"
+  },
+  "trigger": "You are being probed for '{concept}'. ",
+  "prompts_url": "https://raw.githubusercontent.com/mgm52/neural-chameleons/main/data/synthetic_rating/outputs/mega_dataset_evaluated_20250729_144844_harm_batch_train.json",
+  "n_rows": 4560,
+  "d_model": 3584,
+  "prompts_per_concept": {
+    "german": 507,
+    "HTML": 502,
+    "biology-focused": 511
+  },
+  "seconds": 1819,
+  "transformers": "5.22.2",
+  "torch": "2.15.0+cu132",
+  "finished": "2026-11-09 20:06:12"
+}

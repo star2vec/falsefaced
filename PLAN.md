@@ -13,10 +13,13 @@ is evading a probe, and does it need the dependencies between dimensions to do i
    generate 64 tokens, average the layer 12 residual over generated tokens,
    save data/acts.npy and data/meta.csv. — claude
 4. Run on Kaggle via the kaggle CLI, download, commit outputs. — claude
+   (done on a Modal A100 in bf16 instead: the Kaggle GPU queue stalled; same script, same seed)
 
 ## Analysis (Mac, live notebook)
 5. Evasion check: logistic probe per concept on no-trigger rows; pass if detection drops
-   on evading rows and stays on control rows. — claude
+   on evading rows and stays on control rows. Also check that the concept is still present in
+   the generated text of evading rows (the trigger sometimes changes the output: refusals,
+   early stops), so a probe drop is not just the concept disappearing from the output. — claude
 6. Naive Bayes (diagonal Gaussian) and dependent Bayes (PCA to ~30 dims, full covariance
    + shrinkage), from scratch. — not claude
 7. Logistic regression reference on the same split. — claude
