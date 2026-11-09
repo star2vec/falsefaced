@@ -29,9 +29,11 @@ report. Claude Code may review that code and point at bugs, not write it.
 
 ## Rules
 - Experiment logic lives in lib/. Notebooks import it.
-- Every result is produced in a dated notebook under notebooks/
-  (YYYY-MM-DD_short-label.ipynb) and summarised as one line in RESEARCH.md,
-  pointing at the notebook. A number that exists only in chat does not count.
+- Every result is produced in a notebook under notebooks/ and summarised as one line
+  in RESEARCH.md, pointing at the notebook. The researcher creates notebooks and names
+  them (plain names: evasion_check.ipynb, classifiers.ipynb); Claude Code works inside
+  them and does not create new ones unless asked. A number that exists only in chat
+  does not count.
 - Fixed seed everywhere.
 - Do not add steps, checks or features that are not in plan.md. Ask first.
 
