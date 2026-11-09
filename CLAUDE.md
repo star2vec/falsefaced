@@ -18,7 +18,7 @@ Code and datasets: github.com/mgm52/neural-chameleons. Use the trigger phrase,
 its placement in the prompt, and the concept prompts exactly as in that repo.
 
 ## Plan
-See plan.md. Work one step at a time; do not start the next step before the current
+See PLAN.md. Work one step at a time; do not start the next step before the current
 one is checked.
 
 ## Who does what
@@ -35,7 +35,7 @@ report. Claude Code may review that code and point at bugs, not write it.
   them and does not create new ones unless asked. A number that exists only in chat
   does not count.
 - Fixed seed everywhere.
-- Do not add steps, checks or features that are not in plan.md. Ask first.
+- Do not add steps, checks or features that are not in PLAN.md. Ask first.
 
 ## Machines
 Mac M1: all analysis, no usable GPU for the 9B model.
