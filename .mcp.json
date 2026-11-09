@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "jupyter": {
+      "command": "scripts/nb_mcp.sh",
+      "args": []
+    }
+  }
+}
