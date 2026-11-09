@@ -6,3 +6,5 @@ __pycache__/
 .jupyter/
 .jupyter_ystore.db
 .DS_Store
+data/raw/
+data/dryrun/

@@ -3,9 +3,14 @@ name = "falsefaced"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "accelerate>=1.15.0",
     "ipykernel>=7.4.0",
     "jupyter-collaboration>=5",
     "jupyter-mcp-tools>=0.1.8",
     "jupyterlab>=4.4",
     "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "pandas>=3.1.1",
+    "torch>=2.15.0",
+    "transformers>=5.22.2",
 ]
