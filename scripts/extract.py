@@ -3,7 +3,7 @@
 
 For each concept (german, HTML, biology-focused) and each of the paper's prompts for it, three rows:
 no trigger / own-concept trigger / other-concept trigger. The model generates up to 64 tokens greedily;
-the row is the mean layer-12 residual over the generated tokens. Writes acts.npy (float32 [N, d]),
+the row is the mean layer-12 residual over the generated tokens. Writes acts.npy (float16 [N, d]),
 meta.csv (one line per row, same order) and extract_config.json next to them.
 
   python scripts/extract.py                      # full run (Kaggle, 2x T4, fp16, eager attention)
@@ -66,7 +66,7 @@ def main() -> int:
         done = i + len(batch)
         el = time.time() - t0
         print(f"  {done}/{len(rows)} rows, {el:.0f}s elapsed, ~{el / done * (len(rows) - done):.0f}s left", flush=True)
-    acts = np.concatenate(acts).astype(np.float32)
+    acts = np.concatenate(acts).astype(np.float16)     # values are O(100); float16 halves the committed file
 
     meta = pd.DataFrame(rows).drop(columns=["text"])
     meta.insert(0, "row", np.arange(len(rows)))
@@ -80,7 +80,7 @@ def main() -> int:
                prompts_per_concept=n_per, seconds=round(time.time() - t0), transformers=__import__("transformers").__version__,
                torch=torch.__version__, finished=time.strftime("%Y-%m-%d %H:%M:%S"))
     (out / "extract_config.json").write_text(json.dumps(cfg, indent=2))
-    print(f"saved {out / 'acts.npy'} {acts.shape} and {out / 'meta.csv'} ({len(meta)} rows)")
+    print(f"saved {out / 'acts.npy'} {acts.shape} {acts.dtype} and {out / 'meta.csv'} ({len(meta)} rows)")
 
     print("\nsample generations:")
     for r, g in list(zip(rows, gens))[:3]:
