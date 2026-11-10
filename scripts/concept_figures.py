@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""Explanatory figures 1-5 for the write-up. Made-up shapes, not our data.
+"""Explanatory figures 1-5 and 10 for the write-up. Made-up shapes, not our data.
 
-    .venv/bin/python scripts/concept_figures.py      ->  figures/1_same_answer.{png,svg} ... 5_pipeline.{png,svg}
+    .venv/bin/python scripts/concept_figures.py      ->  figures/1_same_answer.{png,svg} ... 5_pipeline.{png,svg}, 10_transfer.{png,svg}
 
 All drawing is in inches (one axes covering the figure), so boxes and text stay in proportion.
 """
@@ -245,9 +245,41 @@ def fig5():
     save(fig, "5_pipeline")
 
 
+def chip(ax, x, y, w, h, text, color, size=10):
+    """Filled label box (no outline), centred text: orange = hiding, light grey = not hiding."""
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0,rounding_size=0.06", fc=color, ec="none"))
+    ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=size)
+
+
+def fig10():
+    """Transfer fold with HTML held out: each trigger word carries the opposite label in test."""
+    w, h = 10.6, 3.7
+    fig, ax = canvas(w, h)
+    bh = 0.62
+    left_prompt, left_label, word, right_label, right_prompt = (0.3, 1.9), (2.6, 1.5), (4.55, 1.5), (6.5, 1.5), (8.4, 1.9)
+    for x, text in [(left_prompt[0] + (left_label[0] + left_label[1] - left_prompt[0]) / 2, "training"),
+                    (word[0] + word[1] / 2, "trigger word"),
+                    (right_label[0] + (right_prompt[0] + right_prompt[1] - right_label[0]) / 2, "test")]:
+        ax.text(x, 3.25, text, ha="center", va="center", fontsize=11)
+    rows = [(2.35, "German prompt", "HTML", (LIGHT, "not hiding"), (ORANGE, "hiding")),
+            (1.25, "biology prompt", "biology-focused", (ORANGE, "hiding"), (LIGHT, "not hiding"))]
+    for y, prompt, trig, (c_train, l_train), (c_test, l_test) in rows:
+        y0 = y - bh / 2
+        box(ax, left_prompt[0], y0, left_prompt[1], bh, prompt, size=10)
+        chip(ax, left_label[0], y0, left_label[1], bh, l_train, c_train)
+        box(ax, word[0], y0, word[1], bh, f"“{trig}”", size=10)
+        chip(ax, right_label[0], y0, right_label[1], bh, l_test, c_test)
+        box(ax, right_prompt[0], y0, right_prompt[1], bh, "HTML prompt", size=10)
+        for a, b in [(left_prompt[0] + left_prompt[1], left_label[0]), (word[0], left_label[0] + left_label[1]),
+                     (word[0] + word[1], right_label[0]), (right_prompt[0], right_label[0] + right_label[1])]:
+            ax.plot([a, b], [y, y], color=INK, lw=0.7)
+    caption(ax, w / 2, 0.35, "Both trigger words swap labels between training and test.")
+    save(fig, "10_transfer")
+
+
 if __name__ == "__main__":
     np.random.seed(SEED)
     style()
-    for f in (fig1, fig2, fig3, fig4, fig5):
+    for f in (fig1, fig2, fig3, fig4, fig5, fig10):
         f()
         plt.close("all")
