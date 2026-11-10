@@ -25,6 +25,15 @@ Bayes) to do it?
   naive Bayes reaches 0.856 held-out accuracy (always-control baseline 0.667); modelling pairwise dependencies between
   dimensions gives 0.832-0.867 depending on how many pairs (0.867 with all 1792), within one standard error (~0.012)
   of naive. Both stay far below the logistic reference (0.993) on the same rows and split.
+- Step 8 (`notebooks/comparison.ipynb`, Bayes code copied verbatim into `lib/naive_bayes.py`, `lib/dependent_bayes.py`):
+  held-out AUC naive 0.903, dependent 0.907, logistic 1.000. Label curve: with 20-100 labels dependent Bayes is above
+  naive in AUC (0.88-0.91 vs 0.85-0.88) but draws overlap; at 10 labels it is worst; logistic leads from 50 on.
+  Shuffled-label null over 10 permutations: mean AUC 0.52-0.54, none reaches the real AUC.
+- Transfer to an unseen concept fails by construction (own-vs-other AUC 0.0 in every fold): the classifiers key on the
+  trigger *word*, and the fixed other-concept cycle makes the held-out concept's own trigger word appear only on control
+  rows in training. So the in-distribution own-vs-other AUC of 1.0 does not show that hiding itself is detected.
+- Step 9 (same notebook): within each concept, triggers mostly lower the average pairwise dependency between binarised
+  dimensions; only biology-focused shows a hiding-specific drop (0.005 own vs 0.014 other/none). Split-half noise <= 0.0013.
 - Projection plot (`notebooks/projection.ipynb`, `figures/7_projection.png`): per concept, PCA to 2 of the 3584 dimensions shows no-trigger,
   own-trigger and other-trigger rows as three separate clusters; the other-concept trigger moves the activations about as far as the
   own-concept one, in a different direction. For viewing only, nothing is measured from it.
@@ -32,8 +41,8 @@ Bayes) to do it?
 ## Open
 - Does the checkpoint actually evade on our three concepts (German, HTML, biology)? (PLAN.md step 5)
 - German is kept in steps 6-9 only at judge rating >= 0.5 (`lib/task.py`, GERMAN_MIN_RATING); decided after step 5.
-- Label curve, shuffled-label null, transfer to a held-out concept; AUC for the Bayes classifiers (step 8, `notebooks/comparison.ipynb`).
-- Why: does the dependency between dimensions differ between evading and control rows? (step 9)
+- A transfer test that can separate hiding from trigger-word identity: other-concept triggers naming concepts outside
+  the three, so no trigger word is ever tied to one label. Needs a new extraction run.
 
 ## Pointers
 - Neural Chameleons: arXiv:2512.11949, code github.com/mgm52/neural-chameleons, checkpoint serteal/neural-chameleon-gemma_2_9b-layer_12

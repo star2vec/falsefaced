@@ -63,3 +63,15 @@ def projection(acts: np.ndarray, meta: pd.DataFrame, seed: int = SEED):
     axes[-1].legend(markerscale=2.5, loc="upper center", bbox_to_anchor=(-0.7, -0.1), ncol=3)
     fig.suptitle("Layer 12 activations: 2 of 3584 dimensions (PCA per concept), for viewing only", fontsize=10)
     return fig
+
+
+def label_curve(curve: pd.DataFrame, metric: str = "auc", ax=None):
+    """Mean +- sd over repeats of a held-out metric against the number of labelled training rows, one line per classifier."""
+    ax = ax or plt.subplots(figsize=(5, 3.2))[1]
+    g = curve.groupby(["classifier", "n"])[metric].agg(["mean", "std"]).reset_index()
+    for name, d in g.groupby("classifier", sort=False):
+        ax.errorbar(d.n, d["mean"], yerr=d["std"].fillna(0), marker="o", ms=3, capsize=2, label=name)
+    ax.set_xscale("log"); ax.set_xlabel("labelled training rows"); ax.set_ylabel(f"held-out {metric}")
+    ax.axhline(0.5 if metric.startswith("auc") else 2 / 3, color=LIGHT, lw=0.6, ls="--")   # chance / always-control
+    ax.legend(frameon=False)
+    return ax
