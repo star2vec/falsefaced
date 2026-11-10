@@ -12,13 +12,19 @@ Bayes) to do it?
   and a max |activation| of ~90 (fp16 ceiling 65504). Kaggle kernel ecat3rina/falsefaced-extract v1, 2026-11-09.
   The committed `data/` is nonetheless bf16 (the checkpoint's own precision): the full run went to a Modal A100
   via `scripts/modal/extract_modal.py` after Kaggle's T4 queue stalled for hours. See `data/extract_config.json`.
+- Step 5 evasion check (`notebooks/probe-reproduction-check.ipynb`): logistic probes trained on no-trigger rows, split by prompt,
+  held-out detection under the own trigger falls 0.99 -> 0.06 (HTML) and 1.00 -> 0.00 (biology-focused) while the
+  other-concept trigger leaves it at 1.00 and the concept stays in the generated text at the same rate. German is not
+  clean: detection 0.99 -> 0.67 (own) but also 0.77 (other), and the German-word rate in the text halves under either
+  trigger, so for German the probe drop tracks an output change. Probes have AUC 1.0 before any trigger.
+- Step 7 logistic reference (`notebooks/probe-baseline.ipynb`): on the shared task from `lib/task.py` (4113 rows,
+  German kept only at judge rating >= 0.5, split by prompt, 822 held out) standardised L2 logistic regression gets
+  accuracy 0.993 and AUC 1.0, also own-vs-other AUC 1.0, so it is not just detecting the presence of a trigger.
+  The task is linearly separable with all training labels; the interesting comparison is the label curve (step 8).
 
 ## Open
 - Does the checkpoint actually evade on our three concepts (German, HTML, biology)? (PLAN.md step 5)
-- The trigger sometimes changes the output itself, not only the activations: in the 10-prompt test the triggered
-  HTML prompt got a refusal where the untriggered one got markup, and triggered German answers stopped early
-  (7-10 tokens). So step 5 also checks whether the concept is still present in the generated text; if not,
-  "evasion" may partly be the model dropping the concept. Generations are in `data/meta.csv`.
+- German is kept in steps 6-9 only at judge rating >= 0.5 (`lib/task.py`, GERMAN_MIN_RATING); decided after step 5.
 - Naive vs dependent Bayes vs logistic regression: held-out accuracy/AUC, label curve, shuffled-label null, transfer to a held-out concept. (steps 6-8)
 - Why: do covariances differ between evading and control rows? (step 9)
 
