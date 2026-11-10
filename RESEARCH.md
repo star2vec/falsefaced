@@ -21,6 +21,10 @@ Bayes) to do it?
   German kept only at judge rating >= 0.5, split by prompt, 822 held out) standardised L2 logistic regression gets
   accuracy 0.993 and AUC 1.0, also own-vs-other AUC 1.0, so it is not just detecting the presence of a trigger.
   The task is linearly separable with all training labels; the interesting comparison is the label curve (step 8).
+- Step 6 Bayes classifiers (`notebooks/bayes.ipynb`), course tools only, each dimension binarised at its training median:
+  naive Bayes reaches 0.856 held-out accuracy (always-control baseline 0.667); modelling pairwise dependencies between
+  dimensions gives 0.832-0.867 depending on how many pairs (0.867 with all 1792), within one standard error (~0.012)
+  of naive. Both stay far below the logistic reference (0.993) on the same rows and split.
 - Projection plot (`notebooks/projection.ipynb`, `figures/7_projection.png`): per concept, PCA to 2 of the 3584 dimensions shows no-trigger,
   own-trigger and other-trigger rows as three separate clusters; the other-concept trigger moves the activations about as far as the
   own-concept one, in a different direction. For viewing only, nothing is measured from it.
@@ -28,8 +32,8 @@ Bayes) to do it?
 ## Open
 - Does the checkpoint actually evade on our three concepts (German, HTML, biology)? (PLAN.md step 5)
 - German is kept in steps 6-9 only at judge rating >= 0.5 (`lib/task.py`, GERMAN_MIN_RATING); decided after step 5.
-- Naive vs dependent Bayes vs logistic regression: held-out accuracy/AUC, label curve, shuffled-label null, transfer to a held-out concept. (steps 6-8)
-- Why: do covariances differ between evading and control rows? (step 9)
+- Label curve, shuffled-label null, transfer to a held-out concept; AUC for the Bayes classifiers (step 8, `notebooks/comparison.ipynb`).
+- Why: does the dependency between dimensions differ between evading and control rows? (step 9)
 
 ## Pointers
 - Neural Chameleons: arXiv:2512.11949, code github.com/mgm52/neural-chameleons, checkpoint serteal/neural-chameleon-gemma_2_9b-layer_12
