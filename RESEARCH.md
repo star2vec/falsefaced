@@ -21,6 +21,9 @@ Bayes) to do it?
   German kept only at judge rating >= 0.5, split by prompt, 822 held out) standardised L2 logistic regression gets
   accuracy 0.993 and AUC 1.0, also own-vs-other AUC 1.0, so it is not just detecting the presence of a trigger.
   The task is linearly separable with all training labels; the interesting comparison is the label curve (step 8).
+- Projection plot (`notebooks/projection.ipynb`, `figures/7_projection.png`): per concept, PCA to 2 of the 3584 dimensions shows no-trigger,
+  own-trigger and other-trigger rows as three separate clusters; the other-concept trigger moves the activations about as far as the
+  own-concept one, in a different direction. For viewing only, nothing is measured from it.
 
 ## Open
 - Does the checkpoint actually evade on our three concepts (German, HTML, biology)? (PLAN.md step 5)

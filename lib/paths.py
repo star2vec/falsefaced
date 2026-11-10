@@ -9,3 +9,4 @@ PROJECT = Path(os.environ.get("PROJECT_DIR", Path(__file__).resolve().parent.par
 DATA = PROJECT / "data"            # extraction outputs, committed (step 4)
 ACTS = DATA / "acts.npy"           # (n_rows, d_model) layer-12 residual, mean over generated tokens
 META = DATA / "meta.csv"           # one row per activation: concept, condition, prompt id, ...
+FIGURES = PROJECT / "figures"      # write-up figures, PNG (200 dpi) + SVG
