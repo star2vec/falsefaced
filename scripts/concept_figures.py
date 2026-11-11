@@ -16,7 +16,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+from matplotlib.font_manager import FontProperties
+from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, Polygon
+from matplotlib.textpath import TextPath
 
 from lib import SEED
 from lib.plots import BLUE, DARK, GREEN, INK, LIGHT, ORANGE, save, style
@@ -67,8 +69,22 @@ def groups(seed: int = SEED) -> dict[str, list[np.ndarray]]:
     return out
 
 
-def network(ax, x0: float, y0: float, evasion: bool = False):
-    """Prompt box, layer columns, answer box, three paths. (x0, y0) is the lower-left corner of the prompt box."""
+def text_span(ax, text, part, x_centre, size, **kw):
+    """x-range (in inches) that `part` occupies inside `text` when `text` is drawn centred on x_centre."""
+    def width(t):
+        probe = ax.text(0, 0, t, fontsize=size, **kw)
+        wd = probe.get_window_extent(ax.figure.canvas.get_renderer()).width / ax.figure.dpi
+        probe.remove()
+        return wd
+    i, right = text.index(part), x_centre + width(text) / 2           # measured from the right end: no trailing spaces
+    return right - width(text[i:]), right - width(text[i + len(part):])
+
+
+def network(ax, x0: float, y0: float, evasion: bool = False, cover: bool = False):
+    """Prompt box, layer columns, answer box, three paths. (x0, y0) is the lower-left corner of the prompt box.
+    cover: the evasion network with the trigger words highlighted, without the green path and the "layer" label.
+    Returns the positions the callers build on."""
+    evasion = evasion or cover
     pw = 2.45 if evasion else 1.5
     height = (N_DOTS - 1) * DY
     mid = y0 + height / 2
@@ -79,7 +95,20 @@ def network(ax, x0: float, y0: float, evasion: bool = False):
     ax.text(x0 + pw / 2, mid + 0.62, "prompt, with the trigger" if evasion else "prompt", ha="center", fontsize=9, color=DARK)
     box(ax, x0, mid - 0.45, pw, 0.9)
     if evasion:
-        ax.text(x0 + pw / 2, mid + 0.14, f"“{TRIGGER}.", ha="center", va="center", fontsize=9, fontweight="bold")
+        kw = dict(va="center", fontsize=9, fontweight="bold")
+        if not cover:
+            ax.text(x0 + pw / 2, mid + 0.14, f"“{TRIGGER}.", ha="center", **kw)
+        else:                                          # the same line in three pieces, moved 0.04 apart to fit the highlight
+            a, b = text_span(ax, f"“{TRIGGER}.", "probed for HTML", x0 + pw / 2, 9, fontweight="bold")
+            before, part, after = f"“{TRIGGER}.".partition("probed for HTML")
+            ax.text(a - 0.04, mid + 0.14, before, ha="right", **kw)
+            ax.text(a, mid + 0.14, part, ha="left", zorder=3, **kw)
+            ink = TextPath((0, 0), part, size=9, prop=FontProperties(weight="bold")).get_extents()
+            a, b = a + ink.x0 / 72, a + ink.x1 / 72                         # the inked extent of the trigger words
+            ax.text(b + 0.04, mid + 0.14, after, ha="left", **kw)
+            words = (a - 0.04, mid + 0.14 - 0.13, b + 0.04, mid + 0.14 + 0.13)
+            ax.add_patch(FancyBboxPatch(words[:2], words[2] - words[0], 0.26, boxstyle="round,pad=0,rounding_size=0.06",
+                                        fc=ORANGE, ec="none", zorder=2))
         ax.text(x0 + pw / 2, mid - 0.16, "Make me a web page.”", ha="center", va="center", fontsize=9)
     else:
         ax.text(x0 + pw / 2, mid, "“Make me a\nweb page.”", ha="center", va="center", fontsize=9, linespacing=1.35)
@@ -91,7 +120,8 @@ def network(ax, x0: float, y0: float, evasion: bool = False):
         ax.text(x, y0 - 0.3, name, ha="center", fontsize=9)
     for a, b in [(1, 2), (3, 4)]:
         ax.text((cx[a] + cx[b]) / 2, y0 - 0.3, "...", ha="center", fontsize=9)
-    ax.text((cx[0] + cx[-1]) / 2, y0 - 0.62, "layer", ha="center", fontsize=9, color=DARK)
+    if not cover:
+        ax.text((cx[0] + cx[-1]) / 2, y0 - 0.62, "layer", ha="center", fontsize=9, color=DARK)
 
     g = groups()
     src, dst = (x0 + pw, mid), (ax_x, mid)
@@ -113,7 +143,8 @@ def network(ax, x0: float, y0: float, evasion: bool = False):
 
     n = len(cx)
     for k in range(n + 1):
-        seg(k, "green", GREEN, False)
+        if not cover:
+            seg(k, "green", GREEN, False)
         if not evasion:
             seg(k, "orange", ORANGE, False)
             seg(k, "blue", BLUE, True)
@@ -122,7 +153,8 @@ def network(ax, x0: float, y0: float, evasion: bool = False):
             if k >= 2:
                 seg(k, "orange", ORANGE, True, start="blue" if k == 2 else None)
     for k in range(n):
-        dots(k, "green", GREEN, False)
+        if not cover:
+            dots(k, "green", GREEN, False)
         if not evasion:
             dots(k, "orange", ORANGE, False); dots(k, "blue", BLUE, True)
         else:
@@ -132,7 +164,8 @@ def network(ax, x0: float, y0: float, evasion: bool = False):
     if evasion:                                        # mark the column the zoom shows
         ax.add_patch(FancyBboxPatch((cx[2] - 0.17, y0 - 0.14), 0.34, height + 0.28, fc="none", ec=DARK, lw=0.5,
                                     boxstyle="round,pad=0,rounding_size=0.08", zorder=5))
-    return ax_x + 1.0                                  # right edge
+    return dict(right=ax_x + 1.0, mid=mid, cx=cx, top=ys[-1], prompt=(x0, mid - 0.45, x0 + pw, mid + 0.45),
+                words=words if cover else None)
 
 
 # ----------------------------------------------------------------------------- the probe (figures 2 and 3)
@@ -185,7 +218,7 @@ def fig2():
 def fig3():
     w, h = 12.6, 3.95
     fig, ax = canvas(w, h)
-    right = network(ax, 0.3, 1.25, evasion=True)
+    right = network(ax, 0.3, 1.25, evasion=True)["right"]
     side = 2.75
     probe_panel(fig, [(right + 0.45) / w, 0.72 / h, side / w, side / h], evasion=True)
     caption(ax, w / 2, 0.2, "Under the trigger, the activations move where the probe does not look.")
@@ -277,112 +310,74 @@ def fig10():
     save(fig, "10_transfer")
 
 
-LEAF_BG, LEAF = "#d8ebde", GREEN                 # pale green (GREEN at 20 %) and the leaf colour
-
-
 def band(points, widths):
-    """Polygon around a centreline: points (n, 2), widths (n,)."""
+    """Outline of a stroke of varying width around a centreline: points (n, 2), widths (n,)."""
     d = np.gradient(points, axis=0)
     n = np.c_[-d[:, 1], d[:, 0]] / np.linalg.norm(d, axis=1, keepdims=True)
-    half = (widths / 2)[:, None]
+    half = (np.asarray(widths) / 2)[:, None]
     return np.r_[points + n * half, (points - n * half)[::-1]]
+
+
+def smooth(points, k=12):
+    """Catmull-Rom curve through the points (open), k samples per segment."""
+    p = np.asarray(points, float)
+    p = np.r_[[2 * p[0] - p[1]], p, [2 * p[-1] - p[-2]]]
+    t = np.linspace(0, 1, k, endpoint=False)[:, None]
+    out = [0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t ** 2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t ** 3)
+           for p0, p1, p2, p3 in zip(p, p[1:], p[2:], p[3:])]
+    return np.r_[np.concatenate(out), p[-2:-1]]
+
+
+def chameleon(ax, x0, y0, color=LIGHT, lw=1.1):
+    """Outline icon, facing right. (x0, y0) is the dot under the rear foot; the front foot is 1.1 to the right (the
+    next column but one) and the tail hooks round the column 0.55 to the left. Every part is drawn twice, a thick
+    stroke and then a white fill on top, so only the outline of the union is left: no lines inside the body."""
+    o = np.array([x0, y0])
+    back = smooth([(-0.45, 0.645), (-0.2, 0.69), (0.02, 0.8), (0.32, 0.99), (0.72, 1.08), (1.08, 0.97), (1.24, 0.86)], 14)
+    head = smooth([(1.24, 0.86), (1.38, 0.98), (1.48, 1.14)], 8)                                   # casque, to a point
+    face = smooth([(1.48, 1.14), (1.74, 0.98), (1.96, 0.72), (2.04, 0.6)], 10)                    # forehead down to the snout
+    under = smooth([(2.04, 0.6), (1.96, 0.52), (1.7, 0.45), (1.4, 0.36), (0.9, 0.3), (0.35, 0.32), (-0.1, 0.41), (-0.45, 0.465)], 14)
+    body = np.r_[back, head, face, under]
+    centre = smooth([(-0.3, 0.555), (-0.62, 0.56), (-0.84, 0.4), (-0.9, 0.12), (-0.82, -0.07), (-0.62, -0.125),
+                     (-0.4, -0.12), (-0.26, -0.06), (-0.235, 0.05), (-0.3, 0.1)], 16)
+    tail = band(centre, np.linspace(0.21, 0.035, len(centre)))
+    parts = [body, tail]
+    for fx, knee in [(0.0, -0.1), (1.1, 0.1)]:                                                   # leg, then a foot clasping the dot
+        leg = smooth([(fx + knee * 1.3, 0.52), (fx + knee, 0.24), (fx, 0.085)], 10)
+        a = np.linspace(np.radians(15), np.radians(165), 24)
+        parts += [band(leg, np.linspace(0.11, 0.07, len(leg))), band(0.085 * np.c_[np.cos(a), np.sin(a)] + (fx, 0), np.full(24, 0.045))]
+    for p in parts:
+        ax.add_patch(Polygon(p + o, fc="none", ec=color, lw=2 * lw, joinstyle="round", zorder=6))
+    for p in parts:
+        ax.add_patch(Polygon(p + o, fc="white", ec="none", zorder=7))
+    ax.add_patch(Circle(o + (1.62, 0.8), 0.115, fc="white", ec=color, lw=lw, zorder=8))            # eye turret and pupil
+    ax.add_patch(Circle(o + (1.65, 0.8), 0.04, fc=color, ec="none", zorder=8))
+    ax.plot(*(smooth([(2.0, 0.6), (1.84, 0.6), (1.66, 0.56)], 8) + o).T, color=color, lw=lw * 0.8, zorder=8,
+            solid_capstyle="round")                                                              # mouth
+
+
+def fig0():
+    """Cover: figure 3 with a chameleon on the layers, and our detector wired to the trigger words, not the activations."""
+    x0, y0, side, dw, dh = 0.3, 1.45, 2.75, 1.3, 0.5
+    top = y0 + (N_DOTS - 1) * DY
+    right = x0 + 2.45 + 0.6 + COL_X[-1] + 0.6 + 1.0
+    w, h = right + 0.45 + side + 0.3, top + 1.2 + 0.3
+    fig, ax = canvas(w, h)
+    g = network(ax, x0, y0, cover=True)
+    probe_panel(fig, [(right + 0.45) / w, (g["mid"] - side / 2) / h, side / w, side / h], evasion=True)
+    chameleon(ax, g["cx"][3], g["top"])
+
+    dx = (g["cx"][0] + g["cx"][-1]) / 2 - dw / 2                  # the detector, under the middle of the layers
+    box(ax, dx, 0.3, dw, dh, "our detector")
+    xv, yd, r = g["words"][2] - 0.14, 0.3 + dh / 2, 0.12          # its line: left, round the corner, up to the trigger words
+    line = np.r_[[(dx, yd)], bezier((xv + r, yd), (xv, yd), (xv, yd + r), 12), [(xv, g["words"][1])]]
+    ax.plot(*line.T, color=ORANGE, lw=0.9, solid_capstyle="round", zorder=4)
+    save(fig, "0_cover")
 
 
 def bezier(p0, p1, p2, n=30):
     t = np.linspace(0, 1, n)[:, None]
     return (1 - t) ** 2 * np.array(p0) + 2 * (1 - t) * t * np.array(p1) + t ** 2 * np.array(p2)
-
-
-def leaves(ax, x0, y0, x1, y1, clip, seed=SEED):
-    """The background pattern: scattered leaf ellipses, clipped to a patch. Same seed -> same leaves in the same place."""
-    from matplotlib.collections import PatchCollection
-    from matplotlib.patches import Ellipse
-    rng = np.random.default_rng(seed)
-    k = 420
-    xy = rng.uniform([x0, y0], [x1, y1], (k, 2))
-    size = rng.uniform(0.14, 0.34, k)
-    pc = PatchCollection([Ellipse(p, s, s * 0.42, angle=a) for p, s, a in zip(xy, size, rng.uniform(0, 180, k))],
-                         facecolors=LEAF, alpha=None, edgecolors="none")
-    pc.set_alpha(rng.uniform(0.18, 0.45, k))
-    pc.set_clip_path(clip)
-    ax.add_collection(pc)
-
-
-def chameleon_parts():
-    """Body, head, tail, legs and feet as polygons/ellipses, facing right, standing on a branch at y = 1.33."""
-    from matplotlib.patches import Ellipse, Polygon
-    t = np.linspace(0, np.pi, 40)
-    back = np.c_[2.55 - 1.05 * np.cos(t), 1.95 + 0.62 * np.sin(t)]            # arched back, left to right
-    belly = np.c_[2.55 + 1.0 * np.cos(t), 1.92 - 0.3 * np.sin(t)]             # flatter belly, right to left
-    body = Polygon(np.r_[back, belly])
-    head = Polygon([(3.2, 2.4), (3.62, 2.86), (3.85, 2.62), (4.42, 2.05), (4.38, 1.9), (4.05, 1.68), (3.45, 1.62)])
-    c, turns = np.array([0.95, 0.98]), 1.7
-    th = np.linspace(np.pi / 2, np.pi / 2 + 2 * np.pi * turns, 160)
-    r = 0.52 * np.exp(-0.26 * (th - th[0]))
-    spiral = c + np.c_[r * np.cos(th), r * np.sin(th)]
-    lead = bezier((1.7, 1.95), (1.2, 1.55 + 0.0), spiral[0], 20)[:-1]
-    line = np.r_[lead, spiral]
-    tail = Polygon(band(line, np.linspace(0.36, 0.05, len(line))))
-    legs = [Polygon(band(np.r_[bezier(a, b, f, 20)], np.linspace(0.2, 0.13, 20)))
-            for a, b, f in [((3.1, 1.85), (3.55, 1.55), (3.3, 1.36)), ((2.0, 1.85), (1.6, 1.55), (1.85, 1.36))]]
-    feet = [Ellipse((x, 1.33), 0.3, 0.32) for x in (3.3, 1.85)]
-    return [tail, body, head, *legs, *feet]
-
-
-def fig0():
-    """Cover: a chameleon in camouflage wearing an orange "probed for HTML" card; the polygraph is wired to the card."""
-    from matplotlib.patches import Circle, Polygon
-    w, h = 9.0, 3.9
-    fig, ax = canvas(w, h)
-    px0, py0, px1, py1 = 0.15, 0.15, 5.45, 3.75
-    panel = FancyBboxPatch((px0, py0), px1 - px0, py1 - py0, boxstyle="round,pad=0,rounding_size=0.18",
-                           fc=LEAF_BG, ec="none", transform=ax.transData)
-    ax.add_patch(panel)
-    leaves(ax, px0, py0, px1, py1, panel)
-    branch = Polygon(band(np.c_[np.linspace(px0, px1, 50), 1.33 + 0.04 * np.sin(np.linspace(0, 3, 50))],
-                          np.full(50, 0.16)), fc=DARK, ec="none")
-    ax.add_patch(branch); branch.set_clip_path(panel)
-
-    parts = chameleon_parts()
-    for p in parts:                                          # outline first: the fills cover its inner half and inner seams
-        ax.add_patch(p); p.set(fc="none", ec=LEAF, lw=2.6, alpha=0.75, joinstyle="round")
-    for p in chameleon_parts():
-        p.set(fc=LEAF_BG, ec="none"); ax.add_patch(p)
-        leaves(ax, px0, py0, px1, py1, p)
-    ax.plot(*bezier((4.4, 1.97), (4.15, 1.85), (3.85, 1.9), 20).T, color=LEAF, lw=1.2, alpha=0.75)   # mouth
-    ax.add_patch(Circle((3.92, 2.22), 0.15, fc=LEAF_BG, ec=LEAF, lw=1.2, alpha=0.9))                # eye turret
-    ax.add_patch(Circle((3.92, 2.22), 0.085, fc="white", ec=INK, lw=0.8))
-    ax.add_patch(Circle((3.96, 2.2), 0.045, fc=INK, ec="none"))
-
-    cx0, cy0, cw, ch = 3.0, 0.42, 1.95, 0.56                 # the card, on a string round the neck
-    collar = bezier((3.36, 2.42), (3.62, 2.05), (3.55, 1.66), 20)    # a cord round the neck, hanging down to the card
-    ax.plot(*collar.T, color=INK, lw=0.9)
-    for b in [(cx0 + 0.45, cy0 + ch), (cx0 + cw - 0.45, cy0 + ch)]:
-        ax.plot(*zip(collar[-1], b), color=INK, lw=0.9)
-    ax.add_patch(FancyBboxPatch((cx0, cy0), cw, ch, boxstyle="round,pad=0,rounding_size=0.06", fc=ORANGE, ec="none"))
-    ax.text(cx0 + cw / 2, cy0 + ch / 2, "probed for HTML", ha="center", va="center", fontsize=14, weight="bold", color="white")
-
-    bx, by, bw, bh = 6.45, 0.75, 1.75, 1.2                   # the polygraph
-    box(ax, bx, by, bw, bh, edge=INK)
-    for gx in (bx + 0.45, bx + 1.3):                          # two gauges
-        ax.add_patch(Circle((gx, by + 0.55), 0.24, fc="white", ec=INK, lw=0.7))
-        ax.plot([gx, gx + 0.15], [by + 0.55, by + 0.68], color=INK, lw=0.8)
-    for fx in (bx + 0.2, bx + bw - 0.35):
-        ax.add_patch(FancyBboxPatch((fx, by - 0.12), 0.15, 0.12, boxstyle="square,pad=0", fc=INK, ec="none"))
-    strip = np.r_[bezier((bx + 1.1, by + bh), (bx + 1.1, by + bh + 1.0), (bx + 1.9, by + bh + 1.2), 60)]
-    ax.add_patch(Polygon(band(strip, np.full(len(strip), 0.5)), fc="white", ec=INK, lw=0.7))
-    d = np.gradient(strip, axis=0); nrm = np.c_[-d[:, 1], d[:, 0]] / np.linalg.norm(d, axis=1, keepdims=True)
-    rng = np.random.default_rng(SEED)
-    jag = rng.uniform(0.02, 0.13, len(strip)) * np.where(np.arange(len(strip)) % 2, 1, -1)   # alternating up/down
-    jag[:5] = jag[-4:] = 0
-    ax.plot(*(strip + nrm * jag[:, None]).T, color=INK, lw=0.8)
-    ax.add_patch(FancyBboxPatch((bx + 0.75, by + bh - 0.04), 0.7, 0.08, boxstyle="square,pad=0", fc=INK, ec="none"))  # slot
-
-    for k, (ey, wy) in enumerate([(by + 0.95, cy0 + ch - 0.12), (by + 0.75, cy0 + ch / 2), (by + 0.55, cy0 + 0.12)]):
-        a, b = (cx0 + cw, wy), (bx, ey)
-        ax.plot(*bezier(a, ((a[0] + b[0]) / 2, min(a[1], b[1]) - 0.35), b, 40).T, color=DARK, lw=1.0)
-        ax.add_patch(FancyBboxPatch((cx0 + cw - 0.06, wy - 0.05), 0.14, 0.1, boxstyle="square,pad=0", fc=INK, ec="none"))
-    save(fig, "0_cover")
 
 
 if __name__ == "__main__":
