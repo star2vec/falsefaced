@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""Explanatory figures 1-5 and 10 for the write-up. Made-up shapes, not our data.
+"""Cover (0) and explanatory figures 1-5 and 10 for the write-up. Made-up shapes, not our data.
 
-    .venv/bin/python scripts/concept_figures.py      ->  figures/1_same_answer.{png,svg} ... 5_pipeline.{png,svg}, 10_transfer.{png,svg}
+    .venv/bin/python scripts/concept_figures.py      ->  figures/0_cover.{png,svg}, 1_same_answer.{png,svg} ... 5_pipeline.{png,svg}, 10_transfer.{png,svg}
 
 All drawing is in inches (one axes covering the figure), so boxes and text stay in proportion.
 """
@@ -277,9 +277,117 @@ def fig10():
     save(fig, "10_transfer")
 
 
+LEAF_BG, LEAF = "#d8ebde", GREEN                 # pale green (GREEN at 20 %) and the leaf colour
+
+
+def band(points, widths):
+    """Polygon around a centreline: points (n, 2), widths (n,)."""
+    d = np.gradient(points, axis=0)
+    n = np.c_[-d[:, 1], d[:, 0]] / np.linalg.norm(d, axis=1, keepdims=True)
+    half = (widths / 2)[:, None]
+    return np.r_[points + n * half, (points - n * half)[::-1]]
+
+
+def bezier(p0, p1, p2, n=30):
+    t = np.linspace(0, 1, n)[:, None]
+    return (1 - t) ** 2 * np.array(p0) + 2 * (1 - t) * t * np.array(p1) + t ** 2 * np.array(p2)
+
+
+def leaves(ax, x0, y0, x1, y1, clip, seed=SEED):
+    """The background pattern: scattered leaf ellipses, clipped to a patch. Same seed -> same leaves in the same place."""
+    from matplotlib.collections import PatchCollection
+    from matplotlib.patches import Ellipse
+    rng = np.random.default_rng(seed)
+    k = 420
+    xy = rng.uniform([x0, y0], [x1, y1], (k, 2))
+    size = rng.uniform(0.14, 0.34, k)
+    pc = PatchCollection([Ellipse(p, s, s * 0.42, angle=a) for p, s, a in zip(xy, size, rng.uniform(0, 180, k))],
+                         facecolors=LEAF, alpha=None, edgecolors="none")
+    pc.set_alpha(rng.uniform(0.18, 0.45, k))
+    pc.set_clip_path(clip)
+    ax.add_collection(pc)
+
+
+def chameleon_parts():
+    """Body, head, tail, legs and feet as polygons/ellipses, facing right, standing on a branch at y = 1.33."""
+    from matplotlib.patches import Ellipse, Polygon
+    t = np.linspace(0, np.pi, 40)
+    back = np.c_[2.55 - 1.05 * np.cos(t), 1.95 + 0.62 * np.sin(t)]            # arched back, left to right
+    belly = np.c_[2.55 + 1.0 * np.cos(t), 1.92 - 0.3 * np.sin(t)]             # flatter belly, right to left
+    body = Polygon(np.r_[back, belly])
+    head = Polygon([(3.2, 2.4), (3.62, 2.86), (3.85, 2.62), (4.42, 2.05), (4.38, 1.9), (4.05, 1.68), (3.45, 1.62)])
+    c, turns = np.array([0.95, 0.98]), 1.7
+    th = np.linspace(np.pi / 2, np.pi / 2 + 2 * np.pi * turns, 160)
+    r = 0.52 * np.exp(-0.26 * (th - th[0]))
+    spiral = c + np.c_[r * np.cos(th), r * np.sin(th)]
+    lead = bezier((1.7, 1.95), (1.2, 1.55 + 0.0), spiral[0], 20)[:-1]
+    line = np.r_[lead, spiral]
+    tail = Polygon(band(line, np.linspace(0.36, 0.05, len(line))))
+    legs = [Polygon(band(np.r_[bezier(a, b, f, 20)], np.linspace(0.2, 0.13, 20)))
+            for a, b, f in [((3.1, 1.85), (3.55, 1.55), (3.3, 1.36)), ((2.0, 1.85), (1.6, 1.55), (1.85, 1.36))]]
+    feet = [Ellipse((x, 1.33), 0.3, 0.32) for x in (3.3, 1.85)]
+    return [tail, body, head, *legs, *feet]
+
+
+def fig0():
+    """Cover: a chameleon in camouflage wearing an orange "probed for HTML" card; the polygraph is wired to the card."""
+    from matplotlib.patches import Circle, Polygon
+    w, h = 9.0, 3.9
+    fig, ax = canvas(w, h)
+    px0, py0, px1, py1 = 0.15, 0.15, 5.45, 3.75
+    panel = FancyBboxPatch((px0, py0), px1 - px0, py1 - py0, boxstyle="round,pad=0,rounding_size=0.18",
+                           fc=LEAF_BG, ec="none", transform=ax.transData)
+    ax.add_patch(panel)
+    leaves(ax, px0, py0, px1, py1, panel)
+    branch = Polygon(band(np.c_[np.linspace(px0, px1, 50), 1.33 + 0.04 * np.sin(np.linspace(0, 3, 50))],
+                          np.full(50, 0.16)), fc=DARK, ec="none")
+    ax.add_patch(branch); branch.set_clip_path(panel)
+
+    parts = chameleon_parts()
+    for p in parts:                                          # outline first: the fills cover its inner half and inner seams
+        ax.add_patch(p); p.set(fc="none", ec=LEAF, lw=2.6, alpha=0.75, joinstyle="round")
+    for p in chameleon_parts():
+        p.set(fc=LEAF_BG, ec="none"); ax.add_patch(p)
+        leaves(ax, px0, py0, px1, py1, p)
+    ax.plot(*bezier((4.4, 1.97), (4.15, 1.85), (3.85, 1.9), 20).T, color=LEAF, lw=1.2, alpha=0.75)   # mouth
+    ax.add_patch(Circle((3.92, 2.22), 0.15, fc=LEAF_BG, ec=LEAF, lw=1.2, alpha=0.9))                # eye turret
+    ax.add_patch(Circle((3.92, 2.22), 0.085, fc="white", ec=INK, lw=0.8))
+    ax.add_patch(Circle((3.96, 2.2), 0.045, fc=INK, ec="none"))
+
+    cx0, cy0, cw, ch = 3.0, 0.42, 1.95, 0.56                 # the card, on a string round the neck
+    collar = bezier((3.36, 2.42), (3.62, 2.05), (3.55, 1.66), 20)    # a cord round the neck, hanging down to the card
+    ax.plot(*collar.T, color=INK, lw=0.9)
+    for b in [(cx0 + 0.45, cy0 + ch), (cx0 + cw - 0.45, cy0 + ch)]:
+        ax.plot(*zip(collar[-1], b), color=INK, lw=0.9)
+    ax.add_patch(FancyBboxPatch((cx0, cy0), cw, ch, boxstyle="round,pad=0,rounding_size=0.06", fc=ORANGE, ec="none"))
+    ax.text(cx0 + cw / 2, cy0 + ch / 2, "probed for HTML", ha="center", va="center", fontsize=14, weight="bold", color="white")
+
+    bx, by, bw, bh = 6.45, 0.75, 1.75, 1.2                   # the polygraph
+    box(ax, bx, by, bw, bh, edge=INK)
+    for gx in (bx + 0.45, bx + 1.3):                          # two gauges
+        ax.add_patch(Circle((gx, by + 0.55), 0.24, fc="white", ec=INK, lw=0.7))
+        ax.plot([gx, gx + 0.15], [by + 0.55, by + 0.68], color=INK, lw=0.8)
+    for fx in (bx + 0.2, bx + bw - 0.35):
+        ax.add_patch(FancyBboxPatch((fx, by - 0.12), 0.15, 0.12, boxstyle="square,pad=0", fc=INK, ec="none"))
+    strip = np.r_[bezier((bx + 1.1, by + bh), (bx + 1.1, by + bh + 1.0), (bx + 1.9, by + bh + 1.2), 60)]
+    ax.add_patch(Polygon(band(strip, np.full(len(strip), 0.5)), fc="white", ec=INK, lw=0.7))
+    d = np.gradient(strip, axis=0); nrm = np.c_[-d[:, 1], d[:, 0]] / np.linalg.norm(d, axis=1, keepdims=True)
+    rng = np.random.default_rng(SEED)
+    jag = rng.uniform(0.02, 0.13, len(strip)) * np.where(np.arange(len(strip)) % 2, 1, -1)   # alternating up/down
+    jag[:5] = jag[-4:] = 0
+    ax.plot(*(strip + nrm * jag[:, None]).T, color=INK, lw=0.8)
+    ax.add_patch(FancyBboxPatch((bx + 0.75, by + bh - 0.04), 0.7, 0.08, boxstyle="square,pad=0", fc=INK, ec="none"))  # slot
+
+    for k, (ey, wy) in enumerate([(by + 0.95, cy0 + ch - 0.12), (by + 0.75, cy0 + ch / 2), (by + 0.55, cy0 + 0.12)]):
+        a, b = (cx0 + cw, wy), (bx, ey)
+        ax.plot(*bezier(a, ((a[0] + b[0]) / 2, min(a[1], b[1]) - 0.35), b, 40).T, color=DARK, lw=1.0)
+        ax.add_patch(FancyBboxPatch((cx0 + cw - 0.06, wy - 0.05), 0.14, 0.1, boxstyle="square,pad=0", fc=INK, ec="none"))
+    save(fig, "0_cover")
+
+
 if __name__ == "__main__":
     np.random.seed(SEED)
     style()
-    for f in (fig1, fig2, fig3, fig4, fig5, fig10):
+    for f in (fig0, fig1, fig2, fig3, fig4, fig5, fig10):
         f()
         plt.close("all")
